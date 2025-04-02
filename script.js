@@ -12,13 +12,7 @@
 //   // Initialize Firebase from the config if it's not already initialized
 //   if (!firebase.apps.length) {
 //     const firebaseConfig = {
-//       apiKey: "AIzaSyCoCXMhW70TMNVfbveNsFHgDamGud0ukPE",
-//       authDomain: "chatamis-1e254.firebaseapp.com",
-//       projectId: "chatamis-1e254",
-//       storageBucket: "chatamis-1e254.firebasestorage.app",
-//       messagingSenderId: "638702644870",
-//       appId: "1:638702644870:web:5c2c448fcd81937849eb07",
-//       measurementId: "G-Z4TGHCB10S"
+
 //     };
 //     firebase.initializeApp(firebaseConfig);
 //   }
@@ -655,7 +649,7 @@
 
 ////////////// version 1.0.2///////////////////////
 // User Management
-// User Management
+
 let currentUser = null;
 let users = [];
 let chats = [];
@@ -668,13 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Firebase from the config if it's not already initialized
   if (!firebase.apps.length) {
     const firebaseConfig = {
-      apiKey: "AIzaSyCoCXMhW70TMNVfbveNsFHgDamGud0ukPE",
-      authDomain: "chatamis-1e254.firebaseapp.com",
-      projectId: "chatamis-1e254",
-      storageBucket: "chatamis-1e254.firebasestorage.app",
-      messagingSenderId: "638702644870",
-      appId: "1:638702644870:web:5c2c448fcd81937849eb07",
-      measurementId: "G-Z4TGHCB10S"
+
     };
     firebase.initializeApp(firebaseConfig);
   }
@@ -818,10 +806,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (usernameDisplay) usernameDisplay.textContent = currentUser.name;
     if (userInitial) userInitial.textContent = currentUser.name.charAt(0).toUpperCase();
 
-    // Load users
+    // Load users and then chats
     loadUsers().then(() => {
-      // After users are loaded, load chats
-      loadChats();
+      loadChats(); // This was missing
     });
 
     // Event Listeners
@@ -985,72 +972,87 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load Chats with real-time updates
-  // function loadChats() {
-  //   if (!currentUser) return;
+  function loadChats() {
+    if (!currentUser) return;
 
-  //   const chatList = document.getElementById('chatList');
-  //   if (!chatList) return;
+    const chatList = document.getElementById('chatList');
+    if (!chatList) return;
 
-  //   if (unsubscribeChats) unsubscribeChats();
+    if (unsubscribeChats) unsubscribeChats();
 
-  //   unsubscribeChats = db.collection('chats')
-  //     .where('participants', 'array-contains', currentUser.id)
-  //     .orderBy('lastUpdated', 'desc')
-  //     .onSnapshot(snapshot => {
-  //       chatList.innerHTML = '';
+    unsubscribeChats = db.collection('chats')
+      .where('participants', 'array-contains', currentUser.id)
+      .orderBy('lastUpdated', 'desc')
+      .onSnapshot(snapshot => {
+        chatList.innerHTML = '';
+        chats = []; // Reset chats array
 
-  //       snapshot.forEach(doc => {
-  //         const chat = {
-  //           id: doc.id,
-  //           ...doc.data()
-  //         };
+        snapshot.forEach(doc => {
+          const chat = {
+            id: doc.id,
+            ...doc.data()
+          };
+          chats.push(chat);
 
-  //         // For direct chats, find the other participant
-  //         let chatName, chatInitial, isGroup = false;
+          // For direct chats, find the other participant
+          let chatName, chatInitial, isGroup = false;
 
-  //         if (chat.isGroup) {
-  //           chatName = chat.groupName;
-  //           chatInitial = chat.groupName.charAt(0).toUpperCase();
-  //           isGroup = true;
-  //         } else {
-  //           const otherUserId = chat.participants.find(id => id !== currentUser.id);
-  //           const otherUser = users.find(u => u.id === otherUserId);
+          if (chat.isGroup) {
+            chatName = chat.groupName;
+            chatInitial = chat.groupName.charAt(0).toUpperCase();
+            isGroup = true;
+          } else {
+            const otherUserId = chat.participants.find(id => id !== currentUser.id);
+            const otherUser = users.find(u => u.id === otherUserId);
 
-  //           if (!otherUser) {
-  //             // If user not found in our cache, display a placeholder
-  //             chatName = 'User';
-  //             chatInitial = 'U';
-  //           } else {
-  //             chatName = otherUser.name;
-  //             chatInitial = otherUser.name.charAt(0).toUpperCase();
-  //           }
-  //         }
+            if (!otherUser) {
+              // If user not found in our cache, try to fetch it
+              db.collection('users').doc(otherUserId).get().then(userDoc => {
+                if (userDoc.exists) {
+                  const userData = userDoc.data();
+                  users.push({ id: userDoc.id, ...userData });
+                  updateChatList();
+                }
+              });
+              chatName = 'User';
+              chatInitial = 'U';
+            } else {
+              chatName = otherUser.name;
+              chatInitial = otherUser.name.charAt(0).toUpperCase();
+            }
+          }
 
-  //         const chatElement = document.createElement('div');
-  //         chatElement.className = 'p-3 bg-white/5 rounded-lg hover:bg-white/10 cursor-pointer transition-all border border-white/5 flex justify-between items-center';
-  //         chatElement.innerHTML = `
-  //           <div class="flex items-center space-x-2 flex-1">
-  //             <div class="w-8 h-8 rounded-full ${isGroup ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 'bg-gradient-to-r from-green-400 to-blue-500'} flex items-center justify-center text-xs font-bold">
-  //               ${chatInitial}
-  //             </div>
-  //             <div class="flex-1 min-w-0">
-  //               <p class="font-medium text-sm truncate">${chatName}</p>
-  //               <p class="text-xs text-white/50 truncate">${chat.lastMessage ? chat.lastMessage.text : 'No messages yet'}</p>
-  //             </div>
-  //           </div>
-  //           ${chat.unreadCount > 0 ? `<span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">${chat.unreadCount}</span>` : ''}
-  //         `;
+          const chatElement = document.createElement('div');
+          chatElement.className = 'p-3 bg-white/5 rounded-lg hover:bg-white/10 cursor-pointer transition-all border border-white/5 flex justify-between items-center';
+          chatElement.innerHTML = `
+          <div class="flex items-center space-x-2 flex-1">
+            <div class="w-8 h-8 rounded-full ${isGroup ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 'bg-gradient-to-r from-green-400 to-blue-500'} flex items-center justify-center text-xs font-bold">
+              ${chatInitial}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-sm truncate">${chatName}</p>
+              <p class="text-xs text-white/50 truncate">${chat.lastMessage ? chat.lastMessage.text : 'No messages yet'}</p>
+            </div>
+          </div>
+          ${chat.unreadCount > 0 ? `<span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">${chat.unreadCount}</span>` : ''}
+        `;
 
-  //         chatElement.addEventListener('click', () => {
-  //           openChat(chat.id, chatName, chatInitial, chat.isGroup);
-  //         });
+          chatElement.addEventListener('click', () => {
+            openChat(chat.id, chatName, chatInitial, chat.isGroup);
+          });
 
-  //         chatList.appendChild(chatElement);
-  //       });
-  //     }, error => {
-  //       showNotification('Failed to load chats: ' + error.message, 'error');
-  //     });
-  // }
+          chatList.appendChild(chatElement);
+        });
+      }, error => {
+        showNotification('Failed to load chats: ' + error.message, 'error');
+      });
+  }
+
+  // Helper function to update chat list after fetching user data
+  function updateChatList() {
+    if (unsubscribeChats) unsubscribeChats();
+    loadChats();
+  }
 
   // Update the loadUsers function to properly fetch and handle users
   async function loadUsers() {
@@ -1347,14 +1349,14 @@ document.addEventListener('DOMContentLoaded', () => {
       recipientStatus.textContent = isGroup ? 'Group Chat' : 'Online';
     }
 
-    // Mark as read (only if not a new chat)
+    // Mark as read
     db.collection('chats').doc(chatId).update({
       unreadCount: 0
-    }).catch(() => {
-      // This might fail for new chats, which is fine
+    }).catch(error => {
+      console.log("Error updating unread count:", error);
     });
 
-    // Show a message indicating we're loading messages
+    // Show loading message
     messagesContainer.innerHTML = '<div class="text-center py-8 text-white/50"><p>Loading messages...</p></div>';
 
     // Load messages with real-time updates
@@ -1362,20 +1364,22 @@ document.addEventListener('DOMContentLoaded', () => {
       .collection('messages')
       .orderBy('timestamp', 'asc')
       .onSnapshot(snapshot => {
-        // Clear messages only if we have something to show
-        if (snapshot.size > 0) {
-          messagesContainer.innerHTML = '';
-        } else {
-          messagesContainer.innerHTML = '<div class="text-center py-8 text-white/50"><p>No messages yet</p></div>';
+        if (snapshot.empty) {
+          messagesContainer.innerHTML = '<div class="text-center py-8 text-white/50"><p>No messages yet. Start the conversation!</p></div>';
+          return;
         }
 
-        snapshot.forEach(doc => {
-          const message = doc.data();
-          addMessageToUI(message);
+        messagesContainer.innerHTML = '';
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            addMessageToUI(change.doc.data());
+          }
         });
 
         // Scroll to bottom
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        setTimeout(() => {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
       }, error => {
         showNotification('Failed to load messages: ' + error.message, 'error');
         messagesContainer.innerHTML = '<div class="text-center py-8 text-white/50"><p>Failed to load messages</p></div>';
@@ -1416,11 +1420,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       // Add message to subcollection
-      await db.collection('chats').doc(currentChat.id).collection('messages').add({
-        text: messageText,
-        sender: currentUser.id,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      const messageRef = await db.collection('chats').doc(currentChat.id)
+        .collection('messages')
+        .add({
+          text: messageText,
+          sender: currentUser.id,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
       // Update chat last message and timestamp
       await db.collection('chats').doc(currentChat.id).update({
@@ -1430,8 +1436,13 @@ document.addEventListener('DOMContentLoaded', () => {
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
         },
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
-        // Don't increment unread for the current user's chat
-        // unreadCount: firebase.firestore.FieldValue.increment(1)
+        // Increment unread count for all participants except current user
+        [`unreadCount.${currentUser.id}`]: 0,
+        ...Object.fromEntries(
+          currentChat.participants
+            .filter(id => id !== currentUser.id)
+            .map(id => [`unreadCount.${id}`, firebase.firestore.FieldValue.increment(1)])
+        )
       });
 
       // Clear input

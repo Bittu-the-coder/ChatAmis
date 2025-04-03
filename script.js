@@ -189,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       searchUserInput.addEventListener('input', handleUserSearch);
+      searchUserInput.value = "";
     }
 
     const logoutBtn = document.getElementById('logoutBtn');
@@ -233,20 +234,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     filteredUsers.forEach(user => {
       const userElement = document.createElement('div');
-      userElement.className = 'p-2 bg-white/10 hover:bg-white/20 rounded cursor-pointer flex items-center space-x-2 ';
+      userElement.className = 'p-2 bg-white/10 hover:bg-white/20 rounded cursor-pointer flex items-center space-x-2';
       userElement.innerHTML = `
-        <div class="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center text-xs font-bold">
-          ${user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-        </div>
-        <div>
-          <p class="text-sm font-medium">${user.name || 'Unknown'}</p>
-          <p class="text-xs text-white/70">${user.email || 'No email'}</p>
-        </div>
-      `;
+      <div class="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center text-xs font-bold">
+        ${user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+      </div>
+      <div>
+        <p class="text-sm font-medium">${user.name || 'Unknown'}</p>
+        <p class="text-xs text-white/70">${user.email || 'No email'}</p>
+      </div>
+    `;
 
       userElement.addEventListener('click', () => {
-        // Fill the search input with the selected user's ID
-        searchInput.value = user.id;
+        // Do not fill the search input with the user's ID
+        searchInput.value = ''; // Keep the input blank
         // Clear the search results
         userSearchResults.innerHTML = '';
         // Auto-start chat with selected user

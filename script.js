@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!userSearchResults) {
         userSearchResults = document.createElement('div');
         userSearchResults.id = 'userSearchResults';
-        userSearchResults.className = 'absolute z-20 bg-purple-800/70 backdrop-blur-lg w-full mt-1 rounded-lg max-h-48 overflow-y-auto';
+        userSearchResults.className = 'absolute z-20 bg-purple-800/70 backdrop-blur-lg w-full mt-12 rounded-lg max-h-48 overflow-y-auto overflow-x-hidden';
         searchUserInput.parentNode.style.position = 'relative';
         searchUserInput.parentNode.appendChild(userSearchResults);
       }
@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     filteredUsers.forEach(user => {
       const userElement = document.createElement('div');
-      userElement.className = 'p-2 bg-white/10 hover:bg-white/20 rounded cursor-pointer flex items-center space-x-2';
+      userElement.className = 'p-2 bg-white/10 hover:bg-white/20 rounded cursor-pointer flex items-center space-x-2 ';
       userElement.innerHTML = `
         <div class="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center text-xs font-bold">
           ${user.name ? user.name.charAt(0).toUpperCase() : 'U'}
@@ -355,38 +355,38 @@ document.addEventListener('DOMContentLoaded', () => {
           chatList.innerHTML = '';
           chats = []; // Reset chats array
 
-          // Use a Set to track unique chat IDs we've already processed
-          const chatIds = new Set();
+          // Use a Map to track unique chats by participant combinations
+          const uniqueChats = new Map();
 
-          // Get all chats
-          const allChats = [];
+          // Process all chat documents
           snapshot.forEach(doc => {
             const chat = {
               id: doc.id,
               ...doc.data()
             };
 
-            // // Check if we've already processed this chat ID to avoid duplicates
-            // if (!chatIds.has(chat.participants[0]) && !chatIds.has(chat.participants[1])) {
-            //   console.log('Chat ID:', chat.id);
-            //   console.log('Chat:', chat);
-            //   chatIds.add(chat.id);
-            //   allChats.push(chat);
-            // }
+            // Create a unique key based on sorted participants to avoid duplicates
+            const participantsKey = chat.participants.sort().join('-');
+
+            // Only add if we haven't seen this participant combination before
+            // or update if this has a more recent lastUpdated timestamp
+            if (!uniqueChats.has(participantsKey) ||
+              (chat.lastUpdated && chat.lastUpdated.seconds > uniqueChats.get(participantsKey).lastUpdated?.seconds)) {
+              uniqueChats.set(participantsKey, chat);
+            }
           });
 
-          // Sort by lastUpdated (if it exists)
-          allChats.sort((a, b) => {
+          // Convert Map values to array and sort by lastUpdated
+          const allChats = Array.from(uniqueChats.values()).sort((a, b) => {
             if (!a.lastUpdated) return 1;
             if (!b.lastUpdated) return -1;
             return b.lastUpdated.seconds - a.lastUpdated.seconds;
           });
 
-          // Process the sorted chats
+          // Process the deduplicated and sorted chats
           allChats.forEach(chat => {
             chats.push(chat);
 
-            // For direct chats, find the other participant
             let chatName, chatInitial, isGroup = false;
 
             if (chat.isGroup) {
@@ -398,7 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
               const otherUser = users.find(u => u.id === otherUserId);
 
               if (!otherUser) {
-                // If user not found in our cache, try to fetch it
                 db.collection('users').doc(otherUserId).get().then(userDoc => {
                   if (userDoc.exists) {
                     const userData = userDoc.data();
@@ -416,7 +415,6 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
 
-            // Get unread count for current user
             let unreadCount = 0;
             if (chat.unreadCount && chat.unreadCount[currentUser.id]) {
               unreadCount = chat.unreadCount[currentUser.id];
@@ -425,17 +423,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const chatElement = document.createElement('div');
             chatElement.className = 'p-3 bg-white/5 rounded-lg hover:bg-white/10 cursor-pointer transition-all border border-white/5 flex justify-between items-center';
             chatElement.innerHTML = `
-              <div class="flex items-center space-x-2 flex-1">
-                <div class="w-8 h-8 rounded-full ${isGroup ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 'bg-gradient-to-r from-green-400 to-blue-500'} flex items-center justify-center text-xs font-bold">
-                  ${chatInitial}
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium text-sm truncate">${chatName}</p>
-                  <p class="text-xs text-white/50 truncate">${chat.lastMessage ? chat.lastMessage.text : 'No messages yet'}</p>
-                </div>
+            <div class="flex items-center space-x-2 flex-1">
+              <div class="w-8 h-8 rounded-full ${isGroup ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 'bg-gradient-to-r from-green-400 to-blue-500'} flex items-center justify-center text-xs font-bold">
+                ${chatInitial}
               </div>
-              ${unreadCount > 0 ? `<span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">${unreadCount}</span>` : ''}
-            `;
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-sm truncate">${chatName}</p>
+                <p class="text-xs text-white/50 truncate">${chat.lastMessage ? chat.lastMessage.text : 'No messages yet'}</p>
+              </div>
+            </div>
+            ${unreadCount > 0 ? `<span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">${unreadCount}</span>` : ''}
+          `;
 
             chatElement.addEventListener('click', () => {
               openChat(chat.id, chatName, chatInitial, isGroup);
